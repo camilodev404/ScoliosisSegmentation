@@ -259,6 +259,16 @@ Algunos modelos pueden superar el tamano recomendado por GitHub para archivos no
 
 ## Orden Recomendado de Ejecucion
 
+Antes de ejecutar el flujo, se debe copiar localmente la carpeta confidencial del dataset dentro de `data/`, de forma que la estructura quede asi:
+
+```text
+ScoliosisSegmentation/
+└── data/
+    └── Scoliosis_Dataset/
+```
+
+Esta carpeta no esta versionada en GitHub por confidencialidad, pero es requerida para que los notebooks puedan leer imagenes, mascaras, indice y diccionario de etiquetas.
+
 Ejecutar los notebooks en orden numerico:
 
 1. `01_colab_thoracolumbar_coverage_strategy_clean.ipynb`
