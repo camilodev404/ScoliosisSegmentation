@@ -1,0 +1,7 @@
+argumento,detalle
+Mejor equilibrio entre mejora y estabilidad,"La mejor variante real fue last_visible_pred_clip con macro_dice_fg=0.3324, superando a raw=0.3249."
+Oracle se mantiene como techo de referencia,"oracle_clip_reference alcanzo macro_dice_fg=0.3577, pero no se considera una variante desplegable del pipeline, sino una referencia superior."
+Ataca el cuello de botella correcto,"El proyecto siguio mostrando que la mayor mejora real aparece al recortar por ultima vertebra visible, no solo por reglas anatomicas generales."
+Mejora concreta en region lumbar,"La mejor variante real alcanzo macro_dice_lumbar=0.4205, frente a raw=0.3978."
+Reduccion de etiquetas extra,mean_extra_count bajo de 3.02 a 2.24.
+Clipping por rango completo no basto,"visible_range_pred_clip quedo en macro_dice_fg=0.3205, por debajo de last_visible_pred_clip."

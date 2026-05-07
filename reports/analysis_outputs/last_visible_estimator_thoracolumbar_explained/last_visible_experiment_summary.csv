@@ -1,0 +1,14 @@
+metric,value
+target_subset,partial
+test_samples,45
+last_test_exact_acc,0.3333333333333333
+last_test_within1_acc,0.5555555555555556
+last_test_mae,2.2666666666666666
+last_test_overprediction_rate,0.6444444444444445
+raw_macro_dice_fg,0.3248689325416529
+oracle_macro_dice_fg,0.35774460132405267
+last_pred_clip_macro_dice_fg,0.3323588733293916
+mean_raw_extra_count,3.022222222222222
+mean_last_extra_count,2.2444444444444445
+mean_raw_missing_count,0.022222222222222223
+mean_last_missing_count,0.022222222222222223

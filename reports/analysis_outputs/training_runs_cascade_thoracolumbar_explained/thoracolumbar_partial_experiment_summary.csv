@@ -1,0 +1,11 @@
+metric,value
+subset,partial
+train_images,143
+val_images,36
+test_images,45
+best_val_macro_dice_fg,0.2314114447445488
+test_macro_dice_fg,0.32260175247560924
+test_macro_iou_fg,0.200097270704437
+test_macro_dice_thoracic,0.2921872885628138
+test_macro_dice_lumbar,0.39559646586631825
+roi_fallback_count,0
