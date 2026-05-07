@@ -1,0 +1,6 @@
+stage,variant,key_result,status,comment
+Binary localization,binary_spine_thoracolumbar_calibrated,test_dice=0.8967,accepted,"Dice=0.8967, IoU=0.8127, threshold=0.6500."
+Cascade multiclass,partial explained improved,test_macro_dice_fg=0.3226,reference,"Thoracic=0.2922, lumbar=0.3956."
+Postprocess,anatomical v2,post_v2_macro_dice_fg=0.3250,optional,Monotonic ratio 0.5556 -> 1.0000.
+Range estimation,visible-range estimator,pred_clip_macro_dice_fg=0.3205,reference,"range_exact_acc=0.2889, within1=0.4667."
+Range estimation,last-visible estimator,last_pred_clip_macro_dice_fg=0.3324,best_current,"last_exact_acc=0.3333, within1=0.5556."

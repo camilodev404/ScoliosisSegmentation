@@ -1,0 +1,5 @@
+tipo,recomendacion
+Pipeline final,"Usar binary -> multiclass -> last_visible_pred_clip como referencia operativa actual, segun las metricas reales exportadas hasta el notebook 08."
+Uso practico,Apoyarse en el notebook final de inferencia y revisar visualmente los casos donde el numero final de etiquetas baja de forma importante respecto a la prediccion cruda.
+Validacion futura,Evaluar el pipeline sobre un conjunto externo o prospectivo para confirmar si la mejora en coherencia anatomica tambien se sostiene fuera del test actual.
+Mejora futura,"Usar oracle_clip_reference solo como techo de referencia y seguir optimizando la variante real last_visible_pred_clip, fortaleciendo sobre todo la region toracica."

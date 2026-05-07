@@ -1,0 +1,8 @@
+metric,value
+mean_raw_extra_count,3.022222222222222
+mean_post_extra_count,2.577777777777778
+mean_raw_missing_count,0.022222222222222223
+mean_post_missing_count,1.0444444444444445
+samples_with_extra_reduction,6.0
+samples_with_missing_increase,20.0
+samples_with_any_post_prediction,45.0
