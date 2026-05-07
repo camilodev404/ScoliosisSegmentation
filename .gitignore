@@ -1,0 +1,21 @@
+# Confidential data
+data/Scoliosis_Dataset/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Environments
+.env
+.venv/
+venv/
+
+# OS/editor files
+.DS_Store
+.vscode/
+.idea/
+
