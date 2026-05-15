@@ -5,7 +5,7 @@
 Autores de la solucion:
 
 - Cristian Camilo Nino Rincon
-- Integrante pendiente 2
+- Sandra Milena Pantoja Cárdenas
 - Integrante pendiente 3
 - Integrante pendiente 4
 
