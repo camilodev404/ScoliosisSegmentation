@@ -5,14 +5,25 @@ Genera dos notebooks Fase 1 (letterbox) desde cascada V3:
   * ..._mejorafase1_letterbox_roi_cpu.ipynb   — perfil liviano (CPU / pocos recursos)
   * ..._mejorafase1_letterbox_roi_cuda.ipynb — perfil completo (GPU)
 
-Ejecutar:  python mejoras/scripts/build_fase1_letterbox_notebooks.py
+Ejecutar desde la raíz del repo:  python notebooks/v3_local/mejoras/scripts/build_fase1_letterbox_notebooks.py
 """
 from __future__ import annotations
 
-import copy
 import json
-import uuid
 from pathlib import Path
+
+from cascade_v3_mejora_notebook_common import (
+    COLAB_CUDA_PROJECT_ROOT,
+    append_execution_registry_cells,
+    clear_code_cell_outputs,
+    insert_markdown_before_read_gray,
+    lines_from_str,
+    patch_config_cell_for_training_variant,
+    patch_markdown_antes_de_ejecutar_output_dir,
+    prepend_interpretacion_warning,
+    prepend_mapa_and_optional_colab_cuda_cells,
+    replace_cascade_checkpoint_paths,
+)
 
 SRC = Path(__file__).resolve().parents[2] / "train_spine_cascade_binary_to_thoracolumbar_v3.ipynb"
 DST_DIR = (
@@ -71,11 +82,6 @@ NEW_RESIZE_BLOCK = """    # --- [FASE 1 / LETTERBOX] unico cambio estructural vs
     image_crop = np.expand_dims(image_crop, axis=0)"""
 
 
-def lines_from_str(s: str) -> list[str]:
-    parts = s.splitlines(keepends=True)
-    return parts if parts else [""]
-
-
 def patch_cell_helpers(source: str) -> str:
     if "letterbox_gray_and_mask" in source:
         return source
@@ -89,40 +95,6 @@ def patch_cell_helpers(source: str) -> str:
     if OLD_RESIZE_BLOCK not in source:
         raise RuntimeError("bloque resize multiclase no encontrado")
     return source.replace(OLD_RESIZE_BLOCK, NEW_RESIZE_BLOCK, 1)
-
-
-def insert_markdown_before_read_gray(nb: dict, lines: list[str]) -> None:
-    for i, cell in enumerate(nb["cells"]):
-        if cell.get("cell_type") != "code":
-            continue
-        src = "".join(cell.get("source", []))
-        if "def read_gray(path: str)" in src or src.strip().startswith("def read_gray"):
-            nb["cells"].insert(
-                i,
-                {
-                    "cell_type": "markdown",
-                    "id": uuid.uuid4().hex[:8],
-                    "metadata": {},
-                    "source": lines,
-                },
-            )
-            return
-    raise RuntimeError("No se encontro la celda de helpers (read_gray)")
-
-
-def prepend_interpretacion_warning(nb: dict) -> None:
-    for cell in nb["cells"]:
-        if cell.get("cell_type") != "markdown":
-            continue
-        s = "".join(cell.get("source", []))
-        if "## Como interpretar este notebook al terminar" in s or "## Como interpretar" in s:
-            warn = (
-                "> **Textos heredados del notebook base:** las secciones de interpretacion / analisis "
-                "final deben **actualizarse despues de cada entrenamiento** con las metricas reales de "
-                "esta variante (`_cpu` / `_cuda`). No copies conclusiones del V3 base si los numeros cambian.\n\n"
-            )
-            cell["source"] = lines_from_str(warn) + cell["source"]
-            return
 
 
 VARIANTS: dict[str, dict] = {
@@ -186,7 +158,16 @@ En la **etapa multiclase sobre ROI**, el notebook base estira (`resize`) el reco
 ---
 
 """
-    nb["cells"][0]["source"] = lines_from_str(mapa_md) + nb["cells"][0]["source"]
+    if variant_key == "cuda":
+        mapa_md += (
+            "## Colab — raiz por defecto (`_cuda`)\n\n"
+            "Si el repo llega a Drive como **Other computers / Mi portátil / ScoliosisSegmentation**, "
+            "la celda de configuracion prueba **antes** que `MyDrive` la ruta:\n\n"
+            f"`{COLAB_CUDA_PROJECT_ROOT.as_posix()}`\n\n"
+            "Si tu carpeta tiene otro nombre, usa `MAIA_PROJECT_ROOT` o `%cd` a la raiz del clon.\n\n"
+            "---\n\n"
+        )
+    prepend_mapa_and_optional_colab_cuda_cells(nb, variant_key, mapa_md)
 
     insert_markdown_before_read_gray(
         nb,
@@ -199,80 +180,9 @@ En la **etapa multiclase sobre ROI**, el notebook base estira (`resize`) el reco
         ),
     )
 
-    # Indice de celda config se desplaza +1 por insercion
-    def idx_config() -> int:
-        for j, c in enumerate(nb["cells"]):
-            if c.get("cell_type") != "code":
-                continue
-            t = "".join(c.get("source", []))
-            if "OUTPUT_DIR = ROOT" in t and "MANIFEST_PATH" in t:
-                return j
-        raise RuntimeError("celda config no encontrada")
+    patch_config_cell_for_training_variant(nb, cfg, variant_key, "FASE 1 letterbox")
 
-    ic = idx_config()
-    c4 = "".join(nb["cells"][ic]["source"])
-    if "for _cand in [ROOT, *ROOT.parents]" not in c4:
-        legacy = """ROOT = Path.cwd()
-if not (ROOT / 'Scoliosis_Dataset_V3' / 'Scoliosis_Dataset').exists() and (ROOT.parent / 'Scoliosis_Dataset_V3' / 'Scoliosis_Dataset').exists():
-    ROOT = ROOT.parent
-"""
-        new_root = """import os
-
-
-def _resolve_maia_project_root(marker: Path) -> Path:
-    \"\"\"Raiz del repo (carpeta que contiene marker). Local, subcarpetas, Colab+Drive.\"\"\"
-    env = os.environ.get('MAIA_PROJECT_ROOT', '').strip()
-    if env:
-        p = Path(env).expanduser().resolve()
-        if (p / marker).exists():
-            return p
-    cwd = Path.cwd().resolve()
-    for cand in [cwd, *cwd.parents]:
-        if (cand / marker).exists():
-            return cand
-    drive_nb = Path('/content/drive/MyDrive/Colab Notebooks')
-    if drive_nb.is_dir():
-        direct = drive_nb / 'MAIA-PROYECTO'
-        if (direct / marker).exists():
-            return direct.resolve()
-        for child in drive_nb.iterdir():
-            try:
-                if child.is_dir() and (child / marker).exists():
-                    return child.resolve()
-            except OSError:
-                continue
-    drive_maia = Path('/content/drive/MyDrive/MAIA-PROYECTO')
-    if (drive_maia / marker).exists():
-        return drive_maia.resolve()
-    raise FileNotFoundError(
-        f"No se encontro {marker.as_posix()}. Opciones: (1) %cd a la raiz del repo; "
-        f"(2) os.environ['MAIA_PROJECT_ROOT'] = r'.../MAIA-PROYECTO'. cwd={cwd}"
-    )
-
-
-ROOT = _resolve_maia_project_root(Path('Scoliosis_Dataset_V3') / 'Scoliosis_Dataset')
-"""
-        if legacy in c4:
-            c4 = c4.replace(legacy, new_root, 1)
-
-    c4 = c4.replace(
-        "OUTPUT_DIR = ROOT / 'analysis_outputs_v3' / 'training_runs_cascade_v3'",
-        f"OUTPUT_DIR = ROOT / 'analysis_outputs_v3' / '{cfg['output_dir']}'",
-    )
-    c4 = c4.replace("IMG_SIZE_BINARY = (512, 256)", f"IMG_SIZE_BINARY = {cfg['img_binary']}")
-    c4 = c4.replace("IMG_SIZE_MULTICLASS = (512, 256)", f"IMG_SIZE_MULTICLASS = {cfg['img_mc']}")
-    c4 = c4.replace("BATCH_SIZE = 4", f"BATCH_SIZE = {cfg['batch']}")
-    c4 = c4.replace("BINARY_EPOCHS = 14", f"BINARY_EPOCHS = {cfg['binary_epochs']}")
-    c4 = c4.replace("MULTICLASS_EPOCHS = 24", f"MULTICLASS_EPOCHS = {cfg['multiclass_epochs']}")
-    tag = f"FASE 1 letterbox ({variant_key})"
-    if tag not in c4:
-        c4 = c4.replace(
-            "print('ROOT:', ROOT)",
-            f"print('{tag} — OUTPUT_DIR:', OUTPUT_DIR)\nprint('ROOT:', ROOT)",
-        )
-    nb["cells"][ic]["source"] = lines_from_str(c4)
-
-    # helpers cell (tras insercion markdown): parchear antes de insertar letterbox
+    # helpers cell (tras insercion markdown): letterbox en prepare_multiclass_cascade_sample
     ih = None
     for j, c in enumerate(nb["cells"]):
         if c.get("cell_type") != "code":
@@ -285,40 +195,11 @@ ROOT = _resolve_maia_project_root(Path('Scoliosis_Dataset_V3') / 'Scoliosis_Data
         raise RuntimeError("celda helpers post-insercion no encontrada")
     nb["cells"][ih]["source"] = lines_from_str(patch_cell_helpers("".join(nb["cells"][ih]["source"])))
 
-    for cell in nb["cells"]:
-        if cell.get("cell_type") != "code":
-            continue
-        s = "".join(cell["source"])
-        s2 = s.replace(
-            "binary_model_path = MODEL_DIR / 'binary_spine_cascade_best.pt'",
-            f"binary_model_path = MODEL_DIR / '{cfg['binary_pt']}'",
-        )
-        s2 = s2.replace(
-            "multiclass_model_path = MODEL_DIR / f'thoracolumbar_{MULTICLASS_SUBSET}_cascade_best.pt'",
-            f"multiclass_model_path = MODEL_DIR / f'{cfg['multiclass_pt']}'",
-        )
-        if s2 != s:
-            cell["source"] = lines_from_str(s2)
-
-    # Markdown "Antes de ejecutar": ruta salidas
-    for cell in nb["cells"]:
-        if cell.get("cell_type") != "markdown":
-            continue
-        s = "".join(cell.get("source", []))
-        if "## Antes de ejecutar" in s:
-            s2 = s.replace(
-                "`analysis_outputs_v3/training_runs_cascade_v3/`",
-                f"`analysis_outputs_v3/{cfg['output_dir']}/`",
-            )
-            cell["source"] = lines_from_str(s2)
-            break
-
+    replace_cascade_checkpoint_paths(nb, cfg)
+    patch_markdown_antes_de_ejecutar_output_dir(nb, cfg["output_dir"])
     prepend_interpretacion_warning(nb)
-
-    for cell in nb["cells"]:
-        if cell.get("cell_type") == "code":
-            cell["execution_count"] = None
-            cell["outputs"] = []
+    append_execution_registry_cells(nb)
+    clear_code_cell_outputs(nb)
 
     out = DST_DIR / f"train_spine_cascade_binary_to_thoracolumbar_v3_mejorafase1_letterbox_roi_{variant_key}.ipynb"
     out.write_text(json.dumps(nb, ensure_ascii=False, indent=1), encoding="utf-8")

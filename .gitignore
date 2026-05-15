@@ -19,3 +19,7 @@ venv/
 .vscode/
 .idea/
 
+# Temporales locales (uploads / depuración)
+.tmp.driveupload/
+_cell_dump_*.txt
+
