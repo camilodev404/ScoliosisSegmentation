@@ -6,6 +6,22 @@ Plan de experimentos secuenciales sobre el pipeline **cascada binario → multic
 
 ---
 
+## Notebook final y mejor run de referencia (cierre del plan)
+
+| Qué | Ruta / identificador |
+|-----|----------------------|
+| **Notebook oficial (el que se deja como final)** | [`notebooks/v3_local/train_spine_cascade_binary_to_thoracolumbar_v3.ipynb`](../train_spine_cascade_binary_to_thoracolumbar_v3.ipynb) |
+| **Contenido** | Misma lógica que **Fase 3 + Fase 4** integrada (LR ×0,5 + `CosineAnnealingLR`, augment ROI en train multiclase, etc.). Es el único artefacto de entrenamiento que debe considerarse **procedimiento vigente** tras cerrar las mejoras. |
+| **Mejor corrida experimentada *adoptada* en el plan** | ID **`4_cuda`** (Fase 4) — `macro_dice_fg` test **0,2380**, `macro_iou_fg` **0,1415** (seed 42). |
+| **Notebook de esa corrida (evidencia / Colab)** | [`train_spine_cascade_binary_to_thoracolumbar_v3_mejorafase4_augmentacion_roi/train_spine_cascade_binary_to_thoracolumbar_v3_mejorafase4_augmentacion_roi_cuda.ipynb`](train_spine_cascade_binary_to_thoracolumbar_v3_mejorafase4_augmentacion_roi/train_spine_cascade_binary_to_thoracolumbar_v3_mejorafase4_augmentacion_roi_cuda.ipynb) |
+| **Métricas y pesos del run `4_cuda`** | `outputs/analysis_outputs_v3/training_runs_cascade_v3_fase4_augment_roi_cuda/` · `models/binary_spine_cascade_fase4_augment_roi_cuda_best.pt` y `models/thoracolumbar_core_cascade_fase4_augment_roi_cuda_best.pt` |
+
+**Nota:** entre todos los runs registrados, la **macro test más alta** fue **`5_cuda_s1337`** (0,2457), pero la decisión fue **«prometedor; no consolidado»** (alta varianza entre semillas). Por eso el **criterio de producto** sigue el pipeline **F3+F4** materializado en el notebook vivo y la referencia métrica **`4_cuda`**, no la semilla 1337.
+
+*(Comparativa numérica Baseline / notebook final / mejor run: [Referencias métricas](#referencias-métricas) más abajo.)*
+
+---
+
 ## Por dónde empezar
 
 | Si necesitas… | Abre |
@@ -19,6 +35,18 @@ Plan de experimentos secuenciales sobre el pipeline **cascada binario → multic
 ---
 
 ## Referencias métricas
+
+### Baseline vs notebook final vs mejor run (test)
+
+| | ID | `macro_dice_fg` | `macro_iou_fg` | Δ vs baseline (dice / IoU) | Nota |
+|---|-----|-----------------|----------------|----------------------------|------|
+| **Baseline** | `0` | **0,1894** | **0,1126** | — | Referencia sin mejoras de fases. |
+| **Notebook final** (F3+F4 integrado) | ref. **`4_cuda`** | **0,2380** | **0,1415** | +0,0486 / +0,0289 | [`train_spine_cascade_binary_to_thoracolumbar_v3.ipynb`](../train_spine_cascade_binary_to_thoracolumbar_v3.ipynb). |
+| **Mejor run** (máximo macro entre runs ejecutados) | **`5_cuda_s1337`** | **0,2457** | **0,1503** | +0,0563 / +0,0377 | No adoptado como oficial (varianza multiseed); ver nota arriba. |
+
+*En `RESULTADOS_Y_DECISIONES_GENERAL.md`, la misma comparativa se genera al ejecutar `python notebooks/v3_local/mejoras/scripts/sync_registry_to_resultados.py` (valores tomados del CSV).*
+
+### Resumen por rol (detalle en CSV)
 
 | Rol | ID / run | `macro_dice_fg` (test) | `macro_iou_fg` (test) | Carpeta métricas |
 |-----|----------|------------------------|------------------------|------------------|

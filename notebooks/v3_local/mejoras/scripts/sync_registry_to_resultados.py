@@ -22,12 +22,15 @@ RESULTADOS = MEJORAS / "RESULTADOS_Y_DECISIONES_GENERAL.md"
 
 SECTION_START = "## Resumen final — registro de experimentos"
 
+# Run cuyo CSV valida el procedimiento F3+F4 integrado en el notebook vivo
+NOTEBOOK_FINAL_REF_RUN_ID = "4_cuda"
+
 INTRO_STATIC = """\
 Cuadro generado desde `notebooks/v3_local/mejoras/experiment_registry.csv` (**editar el CSV primero**, luego ejecutar este script).
 
-**Alcance:** solo experimentos con **fecha de ejecución** (`fecha` no vacía en el CSV). La fila baseline (`0`) no se repite aquí; sus métricas test figuran arriba y en las columnas **Δ**. Variantes `_cpu` opcionales y pendientes siguen solo en el CSV. Métricas por clase (T9–T11, L5): [tabla §7.2](#tabla-comparativa-72--inventario-acumulado-actualizar-al-cerrar-cada-experimento) (Fase 0).
+**Alcance:** solo experimentos con **fecha de ejecución** (`fecha` no vacía en el CSV). La fila baseline (`0`) no se duplica en la tabla de runs; sus métricas y el cuadro *Baseline vs notebook final vs mejor run* están arriba. **Columnas Δ** (tabla de runs): diferencia frente al baseline `0`. Variantes `_cpu` opcionales y pendientes siguen solo en el CSV. Por clase (T9–T11, L5): [tabla §7.2](#tabla-comparativa-72--inventario-acumulado-actualizar-al-cerrar-cada-experimento) (Fase 0).
 
-**Pipeline adoptado al cierre del plan (fases 1–8):** notebook vivo `notebooks/v3_local/train_spine_cascade_binary_to_thoracolumbar_v3.ipynb` con **Fase 3** (LR multiclase ×0,5 + `CosineAnnealingLR`) + **Fase 4** (augment ROI train). Referencia métrica: **`4_cuda`** — `macro_dice_fg` test **0,2380**. Checkpoints: `outputs/analysis_outputs_v3/training_runs_cascade_v3_fase4_augment_roi_cuda/`.
+**Pipeline adoptado al cierre del plan (fases 1–8):** notebook vivo `notebooks/v3_local/train_spine_cascade_binary_to_thoracolumbar_v3.ipynb` (Fase 3 + Fase 4). Las métricas test del notebook final se documentan con el run **`4_cuda`** (validación Colab). Checkpoints: `outputs/analysis_outputs_v3/training_runs_cascade_v3_fase4_augment_roi_cuda/`.
 """
 
 FOOTER_STATIC = """\
@@ -130,18 +133,77 @@ def _baseline_row(rows: list[dict[str, str]]) -> dict[str, str] | None:
     return None
 
 
-def _intro_with_baseline(baseline: dict[str, str] | None) -> str:
-    intro = INTRO_STATIC
-    if not baseline:
-        return intro
-    bd = _fmt_num(baseline.get("macro_dice_fg_test", ""))
-    bi = _fmt_num(baseline.get("macro_iou_fg_test", ""))
-    intro += (
-        f"\n\n**Referencia baseline Fase 0 (`0`, cascada V3 core, test):** "
-        f"`macro_dice_fg` **{bd}**, `macro_iou_fg` **{bi}**. "
-        f"Columnas **Δ dice** / **Δ IoU**: diferencia del run frente a ese baseline."
+def _row_by_id(rows: list[dict[str, str]], eid: str) -> dict[str, str] | None:
+    for r in rows:
+        if (r.get("id") or "").strip() == eid:
+            return r
+    return None
+
+
+def _best_executed_by_macro_dice(rows: list[dict[str, str]]) -> dict[str, str] | None:
+    """Mayor macro_dice_fg_test entre filas con fecha (runs ejecutados)."""
+    best: dict[str, str] | None = None
+    best_m = float("-inf")
+    for r in _executed_only(rows):
+        m = _parse_float(r.get("macro_dice_fg_test", ""))
+        if m is not None and m > best_m:
+            best_m = m
+            best = r
+    return best
+
+
+def _three_way_comparison_md(rows: list[dict[str, str]]) -> str:
+    """Tabla Baseline / Notebook final (ref. 4_cuda) / Mejor run por macro."""
+    base = _baseline_row(rows)
+    final_run = _row_by_id(rows, NOTEBOOK_FINAL_REF_RUN_ID)
+    best = _best_executed_by_macro_dice(rows)
+    if not base:
+        return ""
+    b_d = base.get("macro_dice_fg_test", "")
+    b_i = base.get("macro_iou_fg_test", "")
+    lines = [
+        "### Baseline vs notebook final vs mejor run (test multiclase core)",
+        "",
+        "| | ID | `macro_dice_fg` | `macro_iou_fg` | Δ vs baseline (dice / IoU) | Nota |",
+        "|---|-----|-----------------|----------------|----------------------------|------|",
+    ]
+    lines.append(
+        f"| **Baseline** | `0` | {_fmt_num(b_d)} | {_fmt_num(b_i)} | — | Cascada V3 core (`experiment_registry.csv`). |"
     )
-    return intro
+    if final_run:
+        d_d = _fmt_delta(final_run.get("macro_dice_fg_test", ""), b_d)
+        d_i = _fmt_delta(final_run.get("macro_iou_fg_test", ""), b_i)
+        lines.append(
+            f"| **Notebook final** (vivo F3+F4) | ref. `{NOTEBOOK_FINAL_REF_RUN_ID}` | "
+            f"{_fmt_num(final_run.get('macro_dice_fg_test', ''))} | "
+            f"{_fmt_num(final_run.get('macro_iou_fg_test', ''))} | {d_d} / {d_i} | "
+            f"`train_spine_cascade_binary_to_thoracolumbar_v3.ipynb`. |"
+        )
+    if best:
+        bid = (best.get("id") or "").strip()
+        d_d = _fmt_delta(best.get("macro_dice_fg_test", ""), b_d)
+        d_i = _fmt_delta(best.get("macro_iou_fg_test", ""), b_i)
+        dec = (best.get("decision") or "").strip()
+        if bid == NOTEBOOK_FINAL_REF_RUN_ID:
+            note = "Coincide con la referencia del notebook final."
+        elif "prometedor" in dec.lower() or "no consolidado" in dec.lower():
+            note = (
+                "Mayor macro entre runs ejecutados; decisión «prometedor no consolidado» "
+                "(no sustituye al pipeline oficial)."
+            )
+        else:
+            note = f"Mayor macro entre runs ejecutados. Decisión en CSV: {dec or '—'}."
+        lines.append(
+            f"| **Mejor run** (máx. `macro_dice_fg`) | `{bid}` | "
+            f"{_fmt_num(best.get('macro_dice_fg_test', ''))} | "
+            f"{_fmt_num(best.get('macro_iou_fg_test', ''))} | {d_d} / {d_i} | {note} |"
+        )
+    lines.append("")
+    return "\n".join(lines)
+
+
+def _build_intro(rows: list[dict[str, str]]) -> str:
+    return INTRO_STATIC + "\n\n" + _three_way_comparison_md(rows)
 
 
 def load_registry() -> list[dict[str, str]]:
@@ -165,7 +227,7 @@ def build_section(rows: list[dict[str, str]]) -> str:
     lines = [
         SECTION_START,
         "",
-        _intro_with_baseline(baseline),
+        _build_intro(rows),
         "",
         "| ID | Fase | Fecha | Sem. | `macro_dice_fg` | `macro_iou_fg` | Δ dice | Δ IoU | Decisión | Hipótesis |",
         "|----|------|-------|------|-----------------|----------------|--------|-------|----------|-----------|",

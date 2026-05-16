@@ -8,6 +8,8 @@ Este documento **consolida** métricas, análisis y decisión de adopción por c
 
 **Documentación relacionada:** convenciones en `notebooks/v3_local/mejoras/PLAN_ACCION_AJUSTES_MODELOS.md` (§0–§8). **Registro tabular (fuente para el resumen):** `notebooks/v3_local/mejoras/experiment_registry.csv`. **Sincronizar resumen final:** `python notebooks/v3_local/mejoras/scripts/sync_registry_to_resultados.py` → sección [Resumen final — registro de experimentos](#resumen-final--registro-de-experimentos). **Plantillas copiables:** *Plantilla vacía — Ficha §7.1* y *Plantilla vacía — Tabla comparativa §7.2* más abajo.
 
+**Cierre del plan — notebook final:** el procedimiento vigente de entrenamiento es `notebooks/v3_local/train_spine_cascade_binary_to_thoracolumbar_v3.ipynb` (Fase 3 + Fase 4 integradas). La **mejor corrida adoptada** documentada por métricas globales es el run **`4_cuda`** (Fase 4; `macro_dice_fg` test 0,2380); el notebook de experimento asociado y las rutas de salida están en `notebooks/v3_local/mejoras/README.md` § *Notebook final y mejor run de referencia*. Un run puntual (`5_cuda_s1337`) supera el macro de `4_cuda` pero no se consolidó; no sustituye al pipeline aprobado.
+
 **Normas:**
 
 - No mover consumibles ni artefactos históricos de su ubicación original; solo referenciar rutas.
@@ -612,12 +614,19 @@ Documentar en `notebooks/v3_local/mejoras/train_spine_cascade_binary_to_thoracol
 
 Cuadro generado desde `notebooks/v3_local/mejoras/experiment_registry.csv` (**editar el CSV primero**, luego ejecutar este script).
 
-**Alcance:** solo experimentos con **fecha de ejecución** (`fecha` no vacía en el CSV). La fila baseline (`0`) no se repite aquí; sus métricas test figuran arriba y en las columnas **Δ**. Variantes `_cpu` opcionales y pendientes siguen solo en el CSV. Métricas por clase (T9–T11, L5): [tabla §7.2](#tabla-comparativa-72--inventario-acumulado-actualizar-al-cerrar-cada-experimento) (Fase 0).
+**Alcance:** solo experimentos con **fecha de ejecución** (`fecha` no vacía en el CSV). La fila baseline (`0`) no se duplica en la tabla de runs; sus métricas y el cuadro *Baseline vs notebook final vs mejor run* están arriba. **Columnas Δ** (tabla de runs): diferencia frente al baseline `0`. Variantes `_cpu` opcionales y pendientes siguen solo en el CSV. Por clase (T9–T11, L5): [tabla §7.2](#tabla-comparativa-72--inventario-acumulado-actualizar-al-cerrar-cada-experimento) (Fase 0).
 
-**Pipeline adoptado al cierre del plan (fases 1–8):** notebook vivo `notebooks/v3_local/train_spine_cascade_binary_to_thoracolumbar_v3.ipynb` con **Fase 3** (LR multiclase ×0,5 + `CosineAnnealingLR`) + **Fase 4** (augment ROI train). Referencia métrica: **`4_cuda`** — `macro_dice_fg` test **0,2380**. Checkpoints: `outputs/analysis_outputs_v3/training_runs_cascade_v3_fase4_augment_roi_cuda/`.
+**Pipeline adoptado al cierre del plan (fases 1–8):** notebook vivo `notebooks/v3_local/train_spine_cascade_binary_to_thoracolumbar_v3.ipynb` (Fase 3 + Fase 4). Las métricas test del notebook final se documentan con el run **`4_cuda`** (validación Colab). Checkpoints: `outputs/analysis_outputs_v3/training_runs_cascade_v3_fase4_augment_roi_cuda/`.
 
 
-**Referencia baseline Fase 0 (`0`, cascada V3 core, test):** `macro_dice_fg` **0,1894**, `macro_iou_fg` **0,1126**. Columnas **Δ dice** / **Δ IoU**: diferencia del run frente a ese baseline.
+### Baseline vs notebook final vs mejor run (test multiclase core)
+
+| | ID | `macro_dice_fg` | `macro_iou_fg` | Δ vs baseline (dice / IoU) | Nota |
+|---|-----|-----------------|----------------|----------------------------|------|
+| **Baseline** | `0` | 0,1894 | 0,1126 | — | Cascada V3 core (`experiment_registry.csv`). |
+| **Notebook final** (vivo F3+F4) | ref. `4_cuda` | 0,2380 | 0,1415 | +0,0486 / +0,0289 | `train_spine_cascade_binary_to_thoracolumbar_v3.ipynb`. |
+| **Mejor run** (máx. `macro_dice_fg`) | `5_cuda_s1337` | 0,2457 | 0,1503 | +0,0563 / +0,0377 | Mayor macro entre runs ejecutados; decisión «prometedor no consolidado» (no sustituye al pipeline oficial). |
+
 
 | ID | Fase | Fecha | Sem. | `macro_dice_fg` | `macro_iou_fg` | Δ dice | Δ IoU | Decisión | Hipótesis |
 |----|------|-------|------|-----------------|----------------|--------|-------|----------|-----------|
